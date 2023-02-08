@@ -17,10 +17,11 @@ const uint32_t ledCount(pixelPerDigit * numDigits * 2 + addPixels);
 //    **********ASSIGN VARIABLE VALUES*********
 byte counterA;                         // counts player A
 byte counterB;                         // counts player B
-int colorKey = 0;                    // Acts as a key for the color look-up table
+int colorKey = 0;                      // Acts as a key for the color look-up table
 byte program_mode = 0;                 // If 0, program mode for colors is disabled
 
 // **********Color Values*********
+// Color declarations in array form with the format {R, G, B}. Add colors by following the format below. Don't forget to update the array size below!
 int white[3] = {255,255,255};
 int red[3] = {255, 0, 0};
 int salmon[3] = {224, 109, 109};
@@ -43,8 +44,10 @@ int indigo[3] = {75, 0, 130};
 int fuschia[3] = {255, 0, 255};
 int hotPink[3] = {255, 0, 128};
 
-
-int* colors[21] = 
+// Arrays in C++ need to be declared with a set size - change when number of colors changes. Empty slots in the array will not display any value (0,0,0 for RGB). 
+// This is essentially the color look-up table. The colorKey is used to access the RBG values. The key is incremented/decremented and looped between 0 <= key < numColors (arrays begin indexing at 0). 
+const int arraySize = 21;
+int* colors[arraySize] = 
 {
   white,
   red,
@@ -68,6 +71,7 @@ int* colors[21] =
   fuschia,
   hotPink
 };
+// Again, don't forget to update the size! Example: For 30 colors: const int arraySize = 30;
 
 int numColors = floor(sizeof(colors)/2);
 
@@ -113,9 +117,10 @@ OneButton buttonBdn(buttonUpBpin, true);
 OneButton buttonReset(buttonResetPin, true);
 
 
-//    ********************FUNCTIONS********************
+//-------------********************FUNCTIONS********************-------------//
 
-// Pass the display and counter by reference - allows the changes made to continue outside the scope of the function
+// Helper function that loops through colors forwards for a particular display
+// Pass the display and key by reference - allows the changes made to continue outside the scope of the function
 void clickUpColor(Noiasca_NeopixelDisplay& currDisplay, byte currCounter, int& key)
 {
   if(key >= numColors) key = 0;
@@ -133,6 +138,8 @@ void clickUpColor(Noiasca_NeopixelDisplay& currDisplay, byte currCounter, int& k
   key++;
 }
 
+// Helper function that loops through colors backwards for a particular display
+// Pass the display and key by reference - allows the changes made to continue outside the scope of the function
 void clickDownColor(Noiasca_NeopixelDisplay& currDisplay, byte currCounter, int& key)
 {
   key--;
@@ -151,7 +158,7 @@ void clickDownColor(Noiasca_NeopixelDisplay& currDisplay, byte currCounter, int&
 }
 
 // ********************Strip A********************
-void clickAup()                                     //Increments counter A
+void clickAup()                                     
 {
   if(program_mode == 0)
   {
@@ -177,9 +184,13 @@ void clickAdn()                                   //Decrements counter A
   if(program_mode == 0)
   {
     if (counterA == 0) return;                      //Check for underflow
+    
     counterA--;                                     //Decrease counter by one
+    
     displayA.setCursor(0);                          //Position cursor
+    
     if (counterA < 10) displayA.print(" ");         //Values under 10 get a blank space before digit
+    
     displayA.print(counterA);                       //Send new value to display
   }
 
@@ -196,9 +207,13 @@ void clickBup()
   if(program_mode == 0) // If program mode disabled, increment counter (strip B)
   {
     if (counterB == 99) return;
+    
     counterB++;
+    
     displayB.setCursor(0);
+    
     if (counterB < 10) displayB.print(" ");
+    
     displayB.print(counterB);
   }
 
@@ -213,9 +228,13 @@ void clickBdn()
   if(program_mode == 0) // If program mode disabled, decrement counter
   {
     if (counterB == 0) return;
+    
     counterB--;
+    
     displayB.setCursor(0);
+    
     if (counterB < 10) displayB.print(" ");
+    
     displayB.print(counterB);
   }
 
@@ -269,7 +288,7 @@ void setup()
   buttonBdn.attachClick(clickBdn);
   buttonReset.attachLongPressStart(resetScore);
   buttonReset.attachDoubleClick(toggle_program_mode);
-  //Serial.end(); // Disable serial communication - done for redudancy sake to prevent memory leaks or unnecessary memory usage
+  Serial.end(); // Disable serial communication - done for redudancy sake to prevent memory leaks or unnecessary memory usage
 }
 
 void loop()
