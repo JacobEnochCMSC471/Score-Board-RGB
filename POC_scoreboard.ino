@@ -2,10 +2,12 @@
 //    ******************************PROOF OF COMCEPT, TWO PLAYER SCOREBOARD*******************************
 //    ****************************************************************************************************   
 
+
 //   ********************ASSIGN CONSTANT VALUES********************
 const byte ledPin = 12;                // Arduino pin connected to pixel strip
 const byte numDigits = 2;              // quantity of digits on each display
 const byte pixelPerDigit = 18;         // all pixels, including decimal point pixels if available at each digit
+const byte pixelPerPlayer = pixelPerDigit * 2; 
 const byte addPixels = 0;              // other pixels
 const byte startPixelA = 0;            // start pixel of display A
 const byte startPixelB = 36;           // start pixel of display B 
@@ -15,40 +17,59 @@ const uint32_t ledCount(pixelPerDigit * numDigits * 2 + addPixels);
 //    **********ASSIGN VARIABLE VALUES*********
 byte counterA;                         // counts player A
 byte counterB;                         // counts player B
-byte color_key = 0;                    // Acts as a key for the color look-up table
+int colorKey = 0;                    // Acts as a key for the color look-up table
 byte program_mode = 0;                 // If 0, program mode for colors is disabled
-byte num_colors = 14;                  // Total number of colors
 
-class define_colors
+// **********Color Values*********
+int white[3] = {255,255,255};
+int red[3] = {255, 0, 0};
+int salmon[3] = {224, 109, 109};
+int maroon[3] = {128, 0, 0};
+int crimson[3] = {220,20,60};
+int orange[3] = {255, 120, 0};
+int brown[3] = {117, 55, 0};
+int yellow[3] = {255, 255, 0};
+int gold[3] = {255, 195, 0};
+int yellowGreen[3] = {113, 255, 0};
+int green[3] = {0, 255, 0};
+int forestGreen[3] = {0, 141, 20};
+int aquamarine[3] = {0, 255, 186};
+int teal[3] = {0,128,128};
+int cyan[3] = {0, 255, 255};
+int blue[3] = {0, 0, 255};
+int navyBlue[3] = {0, 0, 128};
+int purple[3] = {128, 0, 128};
+int indigo[3] = {75, 0, 130};
+int fuschia[3] = {255, 0, 255};
+int hotPink[3] = {255, 0, 128};
+
+
+int* colors[21] = 
 {
-  public: 
-    uint32_t colors[14];
-  
-    define_colors() // Constructor for define_colors object
-    {
-      colors[0] = 0xFF0000; // Red
-      colors[1] = 0x7D0D0D; // Maroon
-      colors[2] = 0xF49F9F; // Pink
-      colors[3] = 0xFF6900; // Orange
-      colors[4] = 0x7E3509; // Brown
-      colors[5] = 0xFFE800; // Yellow
-      colors[6] = 0x75FF00; // Lime Green
-      colors[7] = 0x346C05; // Forest Green
-      colors[8] = 0x02FFA8; // Teal
-      colors[9] = 0x02D7FF; // Baby Blue
-      colors[10] = 0x0259FF; // Blue
-      colors[11] = 0x2C3295; // Navy blue
-      colors[12] = 0x902FF; // Purple
-      colors[13] = 0xFF02E0; // Fuschia
-    }
-
-    ~define_colors() // Destrutor (not needed since no dynamic memory is allocated)
-    {
-      return; 
-    }
+  white,
+  red,
+  salmon,
+  maroon,
+  crimson,
+  orange,
+  brown,
+  yellow,
+  gold,
+  yellowGreen,
+  green,
+  forestGreen,
+  aquamarine,
+  teal,
+  cyan,
+  blue,
+  navyBlue,
+  purple,
+  indigo,
+  fuschia,
+  hotPink
 };
 
-define_colors colorObj = define_colors();
+int numColors = floor(sizeof(colors)/2);
 
 //    **********link button names to pins*********
 const byte buttonUpApin = A0;            // player A increment  
@@ -72,15 +93,17 @@ const segsize_t segment[8] {
 };
 
 
-//    **********INCLUDES**********
+//    **********INCLUDES AND NEOPIXEL OBJECT DECLARATIONS**********
 #include <Adafruit_NeoPixel.h>                                       
-Adafruit_NeoPixel strip(ledCount, ledPin, NEO_GRB + NEO_KHZ800);    
+Adafruit_NeoPixel strip(ledCount, ledPin, NEO_GRB + NEO_KHZ800);
+uint32_t strip_color;    
 
 #include <Noiasca_NeopixelDisplay.h>                                      
 Noiasca_NeopixelDisplay displayA(strip, segment, numDigits, pixelPerDigit, startPixelA);  
 Noiasca_NeopixelDisplay displayB(strip, segment, numDigits, pixelPerDigit, startPixelB);  
 
 #include <OneButton.h>  
+#include <math.h>
 
 //    **********Set up onebutton**********            
 OneButton buttonAup(buttonUpApin, true);
@@ -92,36 +115,61 @@ OneButton buttonReset(buttonResetPin, true);
 
 //    ********************FUNCTIONS********************
 
+// Pass the display and counter by reference - allows the changes made to continue outside the scope of the function
+void clickUpColor(Noiasca_NeopixelDisplay& currDisplay, byte currCounter, int& key)
+{
+  if(key >= numColors) key = 0;
+    
+  int* currColor = colors[key];
+
+  strip_color = strip.Color(colors[key][0],colors[key][1],colors[key][2], 0);
+
+  currDisplay.setColorFont(strip_color);
+
+  if (currCounter < 10) currDisplay.print(" ");
+    
+  currDisplay.print(currCounter);     
+    
+  key++;
+}
+
+void clickDownColor(Noiasca_NeopixelDisplay& currDisplay, byte currCounter, int& key)
+{
+  key--;
+  
+  if(colorKey < 0) key = numColors-1;
+    
+  int* currColor = colors[key];
+
+  strip_color = strip.Color(colors[key][0],colors[key][1],colors[key][2], 0);
+
+  currDisplay.setColorFont(strip_color);
+
+  if (currCounter < 10) currDisplay.print(" ");
+    
+  currDisplay.print(currCounter);     
+}
+
 // ********************Strip A********************
 void clickAup()                                     //Increments counter A
 {
   if(program_mode == 0)
   {
     if (counterA == 99) return;                     //Check for overflow
+    
     counterA++;                                     //Increase counter by one
+    
     displayA.setCursor(0);                          //Position cursor
+    
     if (counterA < 10) displayA.print(" ");         //Values under 10 get a blank space before digit
+    
     displayA.print(counterA);                       //Send new value to display
   }
 
-  else if (program_mode == 1) // Increment color key and apply new color (strip A)
+  else // Increment color key and apply new color (strip A)
   {
-    color_key += 1;
-
-    if(color_key >= num_colors) color_key = 0;
-
-    displayA.setColorFont(colorObj.colors[color_key]);
-    displayA.show();
-    strip.show();
-    
-    Serial.println(color_key);
-    Serial.println(program_mode);
-    Serial.print("\n");
-
-    return;
- 
+    clickUpColor(displayA, counterA, colorKey);
   }
-  
 }
 
 void clickAdn()                                   //Decrements counter A
@@ -137,7 +185,7 @@ void clickAdn()                                   //Decrements counter A
 
   else // Decrement color key and apply new color (strip A)
   {
-    return;
+    clickDownColor(displayA, counterA, colorKey);
   }
 }
 
@@ -154,9 +202,9 @@ void clickBup()
     displayB.print(counterB);
   }
 
-  else if (program_mode == 1) // Program mode enabled, increment color key and apply new color (strip B)
+  else // Program mode enabled, increment color key and apply new color (strip B)
   {
-    return;
+    clickUpColor(displayB, counterB, colorKey);
   }
 }
 
@@ -173,7 +221,7 @@ void clickBdn()
 
   else // If program mode enabled, decrement color key and apply new color (strip B)
   {
-    return;
+    clickDownColor(displayB, counterB, colorKey);
   }
 }
 
@@ -201,7 +249,7 @@ void toggle_program_mode()
 
 void setup()
 {
-  Serial.begin(9600);
+  Serial.begin(9600); // Mostly used for debugging purposes - allows stuff to be printed directly to the COM3 output port
   strip.begin();                        // INITIALIZE NeoPixel strip object (REQUIRED)
   strip.show();                         // Turn OFF all pixels
   strip.setBrightness(100);             // Set BRIGHTNESS  (max = 255)
@@ -221,14 +269,15 @@ void setup()
   buttonBdn.attachClick(clickBdn);
   buttonReset.attachLongPressStart(resetScore);
   buttonReset.attachDoubleClick(toggle_program_mode);
+  //Serial.end(); // Disable serial communication - done for redudancy sake to prevent memory leaks or unnecessary memory usage
 }
 
 void loop()
 {
   // put here other code which needs to run:
+  buttonReset.tick();
   buttonAup.tick();
   buttonAdn.tick();
   buttonBup.tick();
   buttonBdn.tick();
-  buttonReset.tick();
 }
