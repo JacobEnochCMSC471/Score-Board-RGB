@@ -19,62 +19,7 @@ byte counterA;                         // counts player A
 byte counterB;                         // counts player B
 int colorKey = 0;                      // Acts as a key for the color look-up table
 byte program_mode = 0;                 // If 0, program mode for colors is disabled
-byte indicator = 0;
-
-// **********Color Values*********
-// Color declarations in array form with the format {R, G, B}. Add colors by following the format below. Don't forget to update the array size below!
-int white[3] = {255,255,255};
-int red[3] = {255, 0, 0};
-int salmon[3] = {224, 109, 109};
-int maroon[3] = {128, 0, 0};
-int crimson[3] = {220,20,60};
-int orange[3] = {255, 120, 0};
-int brown[3] = {117, 55, 0};
-int yellow[3] = {255, 255, 0};
-int gold[3] = {255, 195, 0};
-int yellowGreen[3] = {113, 255, 0};
-int green[3] = {0, 255, 0};
-int forestGreen[3] = {0, 141, 20};
-int aquamarine[3] = {0, 255, 186};
-int teal[3] = {0,128,128};
-int cyan[3] = {0, 255, 255};
-int blue[3] = {0, 0, 255};
-int navyBlue[3] = {0, 0, 128};
-int purple[3] = {128, 0, 128};
-int indigo[3] = {75, 0, 130};
-int fuschia[3] = {255, 0, 255};
-int hotPink[3] = {255, 0, 128};
-
-// Arrays in C++ need to be declared with a set size - change when number of colors changes. Empty slots in the array will not display any value (0,0,0 for RGB). 
-// This is essentially the color look-up table. The colorKey is used to access the RBG values. The key is incremented/decremented and looped between 0 <= key < numColors (arrays begin indexing at 0). 
-const int arraySize = 21;
-int* colors[arraySize] = 
-{
-  white,
-  red,
-  salmon,
-  maroon,
-  crimson,
-  orange,
-  brown,
-  yellow,
-  gold,
-  yellowGreen,
-  green,
-  forestGreen,
-  aquamarine,
-  teal,
-  cyan,
-  blue,
-  navyBlue,
-  purple,
-  indigo,
-  fuschia,
-  hotPink
-};
-// Again, don't forget to update the size! Example: For 30 colors: const int arraySize = 30;
-
-int numColors = floor(sizeof(colors)/2);
+byte indicator = 0;                    // Used to indicate when to increment/decrement the key value - fixes double-click bug when transitioning from increment-decrement and vice versa
 
 //    **********link button names to pins*********
 const byte buttonUpApin = A0;            // player A increment  
@@ -118,6 +63,44 @@ OneButton buttonBdn(buttonUpBpin, true);
 OneButton buttonReset(buttonResetPin, true);
 
 
+//***** HSV Experimentation *****
+const int colorArraySize = 12;
+const long maxVal = 65536;
+int valBrightness = 32;
+int valHue = 255;
+const int largeStepSize = maxVal/6; // 10922
+const int smallStepSize = 65536/12; //5461
+
+uint32_t red = strip.ColorHSV(0, valHue, valBrightness);  
+uint32_t pink = strip.ColorHSV(60075, valHue, valBrightness); 
+uint32_t fuschia = strip.ColorHSV(54613, valHue, valBrightness); 
+uint32_t purple = strip.ColorHSV(49153, valHue, valBrightness);
+uint32_t blue = strip.ColorHSV(43692, valHue, valBrightness); 
+uint32_t teal = strip.ColorHSV(38229, valHue, valBrightness);
+uint32_t cyan = strip.ColorHSV(32768, valHue, valBrightness);
+uint32_t blueGreen = strip.ColorHSV(27306, valHue, valBrightness);  
+uint32_t green = strip.ColorHSV(21845, valHue, valBrightness);
+uint32_t yellowGreen = strip.ColorHSV(16383, valHue, valBrightness); 
+uint32_t yellow = strip.ColorHSV(10922, valHue, valBrightness);
+uint32_t orange = strip.ColorHSV(5451, valHue, valBrightness); 
+
+uint32_t colors [colorArraySize] = {
+  red,
+  pink,
+  fuschia, 
+  purple,
+  blue,
+  teal,
+  cyan,
+  blueGreen,
+  green,
+  yellowGreen,
+  yellow,
+  orange
+};
+
+int numColors = colorArraySize;
+
 //-------------********************FUNCTIONS********************-------------//
 
 // Helper function that loops through colors forwards for a particular display
@@ -131,10 +114,10 @@ void clickUpColor(Noiasca_NeopixelDisplay& currDisplay, byte currCounter, int& k
   }
   
   if(key >= numColors) key = 0;
-    
-  int* currColor = colors[key];
+  //int* currColor = colors[key];
 
-  strip_color = strip.Color(colors[key][0],colors[key][1],colors[key][2], 0);
+  strip_color = colors[key];
+  //strip_color = strip.Color(colors[key][0],colors[key][1],colors[key][2], 0);
 
   currDisplay.setColorFont(strip_color);
 
@@ -159,9 +142,10 @@ void clickDownColor(Noiasca_NeopixelDisplay& currDisplay, byte currCounter, int&
   
   if(colorKey < 0) key = numColors-1;
     
-  int* currColor = colors[key];
+  //int* currColor = colors[key];
 
-  strip_color = strip.Color(colors[key][0],colors[key][1],colors[key][2], 0);
+  strip_color = colors[key];
+  //strip_color = strip.Color(colors[key][0],colors[key][1],colors[key][2], 0);
 
   currDisplay.setColorFont(strip_color);
 
