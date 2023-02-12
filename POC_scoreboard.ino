@@ -19,6 +19,7 @@ byte counterA;                         // counts player A
 byte counterB;                         // counts player B
 int colorKey = 0;                      // Acts as a key for the color look-up table
 byte program_mode = 0;                 // If 0, program mode for colors is disabled
+byte indicator = 0;
 
 // **********Color Values*********
 // Color declarations in array form with the format {R, G, B}. Add colors by following the format below. Don't forget to update the array size below!
@@ -123,6 +124,12 @@ OneButton buttonReset(buttonResetPin, true);
 // Pass the display and key by reference - allows the changes made to continue outside the scope of the function
 void clickUpColor(Noiasca_NeopixelDisplay& currDisplay, byte currCounter, int& key)
 {
+  if (indicator != 1)
+  {
+    key++;
+    indicator = 1;
+  }
+  
   if(key >= numColors) key = 0;
     
   int* currColor = colors[key];
@@ -143,6 +150,12 @@ void clickUpColor(Noiasca_NeopixelDisplay& currDisplay, byte currCounter, int& k
 void clickDownColor(Noiasca_NeopixelDisplay& currDisplay, byte currCounter, int& key)
 {
   key--;
+
+  if (indicator != 0)
+  {
+    key--;
+    indicator = 0;
+  }
   
   if(colorKey < 0) key = numColors-1;
     
