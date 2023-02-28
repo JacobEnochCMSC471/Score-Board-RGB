@@ -13,16 +13,6 @@ const byte startPixelA = 0;            // start pixel of display A
 const byte startPixelB = 36;           // start pixel of display B 
 const uint32_t ledCount(pixelPerDigit * numDigits * 2 + addPixels);
 
-
-//    **********ASSIGN VARIABLE VALUES*********
-byte counterA;                         // counts player A
-byte counterB;                         // counts player B
-int leftColorKey = 0;                  // Acts as a key for the color look-up table for left-side 
-int rightColorKey = 0;                 // Acts as a key for the color look-up table for right-side
-byte program_mode = 0;                 // If 0, program mode for colors is disabled
-byte leftIndicator = 0;                // Used to indicate when to increment/decrement the key value - fixes double-click bug when transitioning from increment-decrement and vice versa
-byte rightIndicator = 0;               // Used to indicate when to increment/decrement the key value - fixes double-click bug when transitioning from increment-decrement and vice versa
-
 //    **********link button names to pins*********
 const byte buttonUpApin = A0;            // player A increment  
 const byte buttonDnApin = A1;            // player A decrement
@@ -48,7 +38,7 @@ const segsize_t segment[8] {
 //    **********INCLUDES AND NEOPIXEL OBJECT DECLARATIONS**********
 #include <Adafruit_NeoPixel.h>                                       
 Adafruit_NeoPixel strip(ledCount, ledPin, NEO_GRB + NEO_KHZ800);
-uint32_t strip_color;    
+uint32_t strip_color;    // Temp var that will hold current color values - used to set colors when in program mode
 
 #include <Noiasca_NeopixelDisplay.h>                                      
 Noiasca_NeopixelDisplay displayA(strip, segment, numDigits, pixelPerDigit, startPixelA);  
@@ -56,7 +46,6 @@ Noiasca_NeopixelDisplay displayB(strip, segment, numDigits, pixelPerDigit, start
 
 #include <OneButton.h>  
 #include <math.h>
-using namespace std; 
 
 //    **********Set up onebutton**********            
 OneButton buttonAup(buttonUpApin, true);
@@ -65,22 +54,26 @@ OneButton buttonBup(buttonDnBpin, true);
 OneButton buttonBdn(buttonUpBpin, true);
 OneButton buttonReset(buttonResetPin, true);
 
+//    **********ASSIGN VARIABLE VALUES*********
+byte counterA, counterB;                                          // Counters for left (A) and right (B) sides
+int leftColorKey = 0, rightColorKey = 0;                          // Acts as a key for the color look-up table for left-side and right-side respectively 
+bool leftIndicator = 0, rightIndicator = 0, program_mode = 0;     // Used to indicate when to increment/decrement the key value - fixes double-click bug when transitioning from increment-decrement and vice versa. 
+                                                                  // Program mode indicates whether the colors can be changed or counters are manipulated
 
 //***** HSV Experimentation *****
-const int colorArraySize = 12;               // Array size
-uint32_t maxVal = 65535;                     // 0-65535 rangel controls hue 
-const uint32_t valSaturation = 200;          // 0-255 range; middle = pastel tones (intensity of color)
-const uint32_t valBrightness = 127;          // 0-255 range
-const uint32_t largeHueStepSize = maxVal/6;  // 10922
-const uint32_t smallHueStepSize = 65536/12;  //5461
-const uint32_t brightnessStepSize = 256/8; 
+const int colorArraySize = 12;               // Array size - adjust for number of colors as needed
+uint32_t maxVal = 65535;                     // 0-65535 range; controls hue 
+const uint32_t valSaturation = 200;          // 0-255 range; middle = pastel tones (intensity of color). Set as a multiple of 16 or 32 for ease of manipulating. 
+const uint32_t valBrightness = 127;          // 0-255 range. Set as a multiple of 16 or 32 for ease of manipulating. 
+const uint32_t largeHueStepSize = maxVal/6;  // 10922 - gets colors R, M, B, C, G, Y 
+const uint32_t smallHueStepSize = 65536/12;  //5461 - Gets colors R, RM, M, MB, B, BC, C, CG, G, GY, Y, YR (orange)
+const uint32_t brightnessStepSize = 256/8;   // Will be used to "step" brightness levels down - 8 levels total, evenly spaced
 
 // Will be used to alter saturation and/or brightness when exposed to different light levels
 uint32_t currSat = valSaturation;
 uint32_t currBrightness = valBrightness; 
 
-// This array will keep track of the hue values for each color - will be used to dynamically re-adjust brightness
-
+// This array will keep track of the hue values for each color - will be used to dynamically re-adjust brightness at some point
 uint32_t hueStates[colorArraySize] = 
 {
   0,
@@ -97,6 +90,8 @@ uint32_t hueStates[colorArraySize] =
   5451
 };
 
+// Function that uses hue, saturation and brightness to generate a RGB value that will be used to set colors in program mode
+// Passes RGB values through the gamma32 function before storing as recommended by AdaFruit NeoPixel documentation 
 uint32_t* populateColorTable()
 {
   static uint32_t tempTable[colorArraySize]; 
@@ -111,38 +106,6 @@ uint32_t* populateColorTable()
   return tempTable;
 }
 
-// Change to using array for this later
-/*
-uint32_t red = strip.ColorHSV(0, valSaturation, valBrightness);  
-uint32_t pink = strip.ColorHSV(60075, valSaturation, valBrightness); 
-uint32_t fuschia = strip.ColorHSV(54613, valSaturation, valBrightness); 
-uint32_t purple = strip.ColorHSV(49153, valSaturation, valBrightness);
-uint32_t blue = strip.ColorHSV(43692, valSaturation, valBrightness); 
-uint32_t teal = strip.ColorHSV(38229, valSaturation, valBrightness);
-uint32_t cyan = strip.ColorHSV(32768, valSaturation, valBrightness);
-uint32_t blueGreen = strip.ColorHSV(27306, valSaturation, valBrightness);  
-uint32_t green = strip.ColorHSV(21845, valSaturation, valBrightness);
-uint32_t yellowGreen = strip.ColorHSV(16383, valSaturation, valBrightness); 
-uint32_t yellow = strip.ColorHSV(10922, valSaturation, valBrightness);
-uint32_t orange = strip.ColorHSV(5451, valSaturation, valBrightness); 
-*/
-
-/*
-uint32_t colors [colorArraySize] = {
-  red,
-  pink,
-  fuschia, 
-  purple,
-  blue,
-  teal,
-  cyan,
-  blueGreen,
-  green,
-  yellowGreen,
-  yellow,
-  orange
-};*/
-
 uint32_t* colors = populateColorTable();
 
 int numColors = colorArraySize;
@@ -151,7 +114,7 @@ int numColors = colorArraySize;
 
 // Helper function that loops through colors forwards for a particular display
 // Pass the display and key by reference - allows the changes made to continue outside the scope of the function
-void clickUpColor(Noiasca_NeopixelDisplay& currDisplay, byte currCounter, int& key, byte &indicator)
+void clickUpColor(Noiasca_NeopixelDisplay& currDisplay, byte currCounter, int& key, bool &indicator)
 {
   if (indicator != 1)
   {
@@ -174,7 +137,7 @@ void clickUpColor(Noiasca_NeopixelDisplay& currDisplay, byte currCounter, int& k
 
 // Helper function that loops through colors backwards for a particular display
 // Pass the display and key by reference - allows the changes made to continue outside the scope of the function
-void clickDownColor(Noiasca_NeopixelDisplay& currDisplay, byte currCounter, int& key, byte &indicator)
+void clickDownColor(Noiasca_NeopixelDisplay& currDisplay, byte currCounter, int& key, bool &indicator)
 {
   key--;
 
@@ -312,8 +275,8 @@ void setup()
   strip.setBrightness(100);             // Set BRIGHTNESS  (max = 255)
   strip.clear();
 
-  displayA.setColorFont(0x888888);      // Display A Color 
-  displayB.setColorFont(0x888888);      // Display B Color
+  displayA.setColorFont(0x888888);      // Initial Display A Color (white)
+  displayB.setColorFont(0x888888);      // Initisl Display B Color (white)
 
   displayA.print(" 0");                 //Show a 0 on display A
   displayB.print(" 0");                 //Show a 0 on display B
